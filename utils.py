@@ -6,16 +6,31 @@ import psutil
 from datetime import datetime
 
 def get_socket_info(pid, inode):
-    """Get detailed socket information"""
+    """Get detailed socket information by inode for a process."""
     try:
-        # Try to get TCP and UDP socket information
-        conns = psutil.Process(pid).connections()
-        for conn in conns:
-            if conn.raddr and hasattr(conn, 'inode') and str(conn.inode) in inode:
-                return f"socket:[{inode}] ({conn.type}) {conn.laddr[0]}:{conn.laddr[1]} -> {conn.raddr[0]}:{conn.raddr[1]}"
-            elif hasattr(conn, 'inode') and str(conn.inode) in inode:
-                return f"socket:[{inode}] ({conn.type}) {conn.laddr[0]}:{conn.laddr[1]} (listening)"
-    except:
+        proc = psutil.Process(pid)
+        for conn in proc.connections(kind='all'):
+            # psutil returns inode as int, so compare as int
+            if hasattr(conn, 'inode') and conn.inode == int(inode):
+                sock_type = {socket.SOCK_STREAM: 'TCP', socket.SOCK_DGRAM: 'UDP'}.get(conn.type, 'UNIX')
+                # laddr and raddr can be tuples or strings (for UNIX)
+                if isinstance(conn.laddr, tuple):
+                    laddr = f"{conn.laddr[0]}:{conn.laddr[1]}"
+                else:
+                    laddr = str(conn.laddr)
+                if conn.raddr:
+                    if isinstance(conn.raddr, tuple):
+                        raddr = f"{conn.raddr[0]}:{conn.raddr[1]}"
+                    else:
+                        raddr = str(conn.raddr)
+                else:
+                    raddr = ''
+                state = getattr(conn, 'status', '')
+                if raddr:
+                    return f"socket:[{inode}] ({sock_type}) {laddr} -> {raddr} {state}"
+                else:
+                    return f"socket:[{inode}] ({sock_type}) {laddr} {state}"
+    except Exception as e:
         pass
     return f"socket:[{inode}]"
 
