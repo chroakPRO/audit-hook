@@ -27,3 +27,9 @@ def validate_pid(pid):
         return True
     except OSError:
         return False 
+
+def fd_to_path(pid, fd):
+    try:
+        return os.readlink(f'/proc/{pid}/fd/{fd}')
+    except Exception:
+        return f'fd={fd}' 

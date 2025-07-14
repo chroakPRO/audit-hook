@@ -4,7 +4,7 @@ import ctypes
 import signal
 from ctypes import c_long, c_int, c_void_p, Structure
 from syscalls import is_file_syscall, get_syscall_name
-from utils import format_flags
+from utils import format_flags, fd_to_path
 import time
 
 # ptrace constants
@@ -116,14 +116,17 @@ class ProcessTracer:
         elif syscall_name == 'read':
             fd = args.get('fd', -1)
             count = args.get('count', 0)
-            print(f"[{timestamp}] READ: fd={fd}, bytes={count}")
+            path = fd_to_path(self.pid, fd)
+            print(f"[{timestamp}] READ: {path}, bytes={count}")
         elif syscall_name == 'write':
             fd = args.get('fd', -1)
             count = args.get('count', 0)
-            print(f"[{timestamp}] WRITE: fd={fd}, bytes={count}")
+            path = fd_to_path(self.pid, fd)
+            print(f"[{timestamp}] WRITE: {path}, bytes={count}")
         elif syscall_name == 'close':
             fd = args.get('fd', -1)
-            print(f"[{timestamp}] CLOSE: fd={fd}")
+            path = fd_to_path(self.pid, fd)
+            print(f"[{timestamp}] CLOSE: {path}")
 
     def monitor_syscalls(self):
         """Enhanced monitoring with file syscall handling"""
