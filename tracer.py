@@ -4,8 +4,10 @@ import ctypes
 import signal
 from ctypes import c_long, c_int, c_void_p, Structure
 from syscalls import is_file_syscall, get_syscall_name
-from utils import format_flags, fd_to_path, get_process_info
+from utils import format_flags, fd_to_path, get_process_info, get_socket_info
 import time
+import psutil
+import socket
 
 # ptrace constants
 PTRACE_ATTACH = 16
