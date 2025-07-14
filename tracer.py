@@ -4,7 +4,7 @@ import ctypes
 import signal
 from ctypes import c_long, c_int, c_void_p, Structure
 from syscalls import is_file_syscall, get_syscall_name
-from utils import format_flags, fd_to_path
+from utils import format_flags, fd_to_path, get_process_info
 import time
 
 # ptrace constants
@@ -30,6 +30,15 @@ class ProcessTracer:
         self.pid = pid
         self.libc = ctypes.CDLL("libc.so.6")
         self.attached = False
+        self.process_info = get_process_info(pid)
+        if self.process_info:
+            print(f"[INFO] Process details:")
+            print(f"  Name: {self.process_info['name']}")
+            print(f"  User: {self.process_info['user']}")
+            print(f"  Command: {self.process_info['cmdline']}")
+            print(f"  Working Dir: {self.process_info['cwd']}")
+            print(f"  Started: {self.process_info['start_time']}")
+            print("-" * 50)
         
     def attach(self):
         """Attach to target process"""
@@ -108,25 +117,36 @@ class ProcessTracer:
             self.log_file_access(timestamp, syscall_name, args)
 
     def log_file_access(self, timestamp, syscall_name, args):
-        """Log file access event"""
+        """Enhanced log file access event with detailed information"""
+        proc_name = self.process_info['name'] if self.process_info else 'unknown'
+        proc_user = self.process_info['user'] if self.process_info else 'unknown'
+        
         if syscall_name in ['open', 'openat']:
             filename = args.get('filename', 'unknown')
             flags = format_flags(args.get('flags', 0))
-            print(f"[{timestamp}] OPEN: {filename} ({flags})")
+            mode = oct(args.get('mode', 0))[-4:]
+            print(f"[{timestamp}] {proc_name}({self.pid})[{proc_user}] OPEN: {filename}")
+            print(f"  Flags: {flags}")
+            print(f"  Mode: {mode}")
+            
         elif syscall_name == 'read':
             fd = args.get('fd', -1)
             count = args.get('count', 0)
             path = fd_to_path(self.pid, fd)
-            print(f"[{timestamp}] READ: {path}, bytes={count}")
+            print(f"[{timestamp}] {proc_name}({self.pid})[{proc_user}] READ: {path}")
+            print(f"  Bytes requested: {count}")
+            
         elif syscall_name == 'write':
             fd = args.get('fd', -1)
             count = args.get('count', 0)
             path = fd_to_path(self.pid, fd)
-            print(f"[{timestamp}] WRITE: {path}, bytes={count}")
+            print(f"[{timestamp}] {proc_name}({self.pid})[{proc_user}] WRITE: {path}")
+            print(f"  Bytes written: {count}")
+            
         elif syscall_name == 'close':
             fd = args.get('fd', -1)
             path = fd_to_path(self.pid, fd)
-            print(f"[{timestamp}] CLOSE: {path}")
+            print(f"[{timestamp}] {proc_name}({self.pid})[{proc_user}] CLOSE: {path}")
 
     def monitor_syscalls(self):
         """Enhanced monitoring with file syscall handling"""
